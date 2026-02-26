@@ -14,6 +14,7 @@ Run with:
     pytest tests/test_semantic_scholar.py -v
 """
 
+import os
 import pytest
 from unittest.mock import patch, MagicMock
 from sqlalchemy import create_engine
@@ -101,7 +102,8 @@ class TestFetch:
         mock_response.raise_for_status.return_value = None
 
         with patch("collectors.semantic_scholar.requests.get", return_value=mock_response):
-            result = collector.fetch()
+            with patch.dict("os.environ", {"SEMANTIC_SCHOLAR_API_KEY": "test-key"}):
+                result = collector.fetch()
 
         # One response per query in QUERIES (2 queries × 2 papers = 4 total)
         assert isinstance(result, list)
@@ -114,7 +116,8 @@ class TestFetch:
         mock_response.raise_for_status.return_value = None
 
         with patch("collectors.semantic_scholar.requests.get", return_value=mock_response):
-            result = collector.fetch()
+            with patch.dict("os.environ", {"SEMANTIC_SCHOLAR_API_KEY": "test-key"}):
+                result = collector.fetch()
 
         assert all("_query" in paper for paper in result)
 
@@ -129,20 +132,30 @@ class TestFetch:
         mock_response.raise_for_status.side_effect = req.HTTPError("429 Too Many Requests")
 
         with patch("collectors.semantic_scholar.requests.get", return_value=mock_response):
-            with pytest.raises(req.HTTPError):
-                collector.fetch()
+            with patch.dict("os.environ", {"SEMANTIC_SCHOLAR_API_KEY": "test-key"}):
+                with pytest.raises(req.HTTPError):
+                    collector.fetch()
 
-    def test_fetch_sends_no_auth_header(self, collector, sample_api_response):
-        """Semantic Scholar is unauthenticated — no headers should be sent."""
+    def test_fetch_sends_api_key_header(self, collector, sample_api_response):
+        """The x-api-key header must be present on every request."""
         mock_response = MagicMock()
         mock_response.json.return_value = sample_api_response
         mock_response.raise_for_status.return_value = None
 
         with patch("collectors.semantic_scholar.requests.get", return_value=mock_response) as mock_get:
-            collector.fetch()
+            with patch.dict("os.environ", {"SEMANTIC_SCHOLAR_API_KEY": "test-key-123"}):
+                collector.fetch()
 
         call_kwargs = mock_get.call_args_list[0].kwargs
-        assert "headers" not in call_kwargs
+        assert call_kwargs["headers"]["x-api-key"] == "test-key-123"
+
+    def test_fetch_raises_without_api_key(self, collector):
+        """fetch() should raise EnvironmentError if the API key is not set."""
+        with patch.dict("os.environ", {}, clear=True):
+            # Ensure the key is definitely absent
+            os.environ.pop("SEMANTIC_SCHOLAR_API_KEY", None)
+            with pytest.raises(EnvironmentError, match="SEMANTIC_SCHOLAR_API_KEY"):
+                collector.fetch()
 
 
 # ------------------------------------------------------------------
@@ -266,7 +279,8 @@ class TestCollect:
         mock_response.raise_for_status.return_value = None
 
         with patch("collectors.semantic_scholar.requests.get", return_value=mock_response):
-            result = collector.collect()
+            with patch.dict("os.environ", {"SEMANTIC_SCHOLAR_API_KEY": "test-key"}):
+                result = collector.collect()
 
         assert result is True
 
@@ -279,6 +293,7 @@ class TestCollect:
 
         with patch("collectors.semantic_scholar.requests.get", return_value=mock_response):
             with patch("collectors.base.time.sleep"):  # skip actual waiting in tests
-                result = collector.collect()
+                with patch.dict("os.environ", {"SEMANTIC_SCHOLAR_API_KEY": "test-key"}):
+                    result = collector.collect()
 
         assert result is False

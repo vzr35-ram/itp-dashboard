@@ -40,8 +40,12 @@ jobs:
         run: pip install -r requirements.txt
 
       # 4. Run the collector.
-      #    Semantic Scholar is a public API — no key needed at our request volume.
+      #    The API key is stored as a GitHub Actions Secret — never in code.
+      #    Go to: repo → Settings → Secrets and variables → Actions → New secret
+      #    Name it: SEMANTIC_SCHOLAR_API_KEY
       - name: Run Semantic Scholar collector
+        env:
+          SEMANTIC_SCHOLAR_API_KEY: ${{ secrets.SEMANTIC_SCHOLAR_API_KEY }}
         run: python -m collectors.semantic_scholar
 
       # 5. Push the updated dashboard.db back to the repo.

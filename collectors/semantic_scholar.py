@@ -5,14 +5,15 @@ Collects recent AI/ML papers from the Semantic Scholar Academic Graph API.
 
 API docs:  https://api.semanticscholar.org/graph/v1
 Rate limits:
-  - Unauthenticated: shared pool of 1,000 req/sec across all users.
-    At 2 requests/day this project is well within the free tier.
-    No API key required.
+  - Authenticated (x-api-key header): 1 req/sec dedicated per key.
+  - Requires SEMANTIC_SCHOLAR_API_KEY environment variable.
+    Locally: set in .env. In GitHub Actions: set as a repository Secret.
 
 Run directly:
     python -m collectors.semantic_scholar
 """
 
+import os
 import logging
 import time
 import requests
@@ -65,6 +66,14 @@ class SemanticScholarCollector(BaseCollector):
         Raises requests.HTTPError on a bad response so BaseCollector
         can catch it and retry.
         """
+        api_key = os.getenv("SEMANTIC_SCHOLAR_API_KEY")
+        if not api_key:
+            raise EnvironmentError(
+                "SEMANTIC_SCHOLAR_API_KEY is not set. "
+                "Add it to your .env file locally, or as a GitHub Actions Secret."
+            )
+        headers = {"x-api-key": api_key}
+
         all_papers = []
 
         for query, year in QUERIES:
@@ -80,6 +89,7 @@ class SemanticScholarCollector(BaseCollector):
             response = requests.get(
                 BASE_URL,
                 params=params,
+                headers=headers,
                 timeout=15,
             )
             response.raise_for_status()  # → triggers BaseCollector retry on 4xx/5xx
