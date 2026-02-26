@@ -1,0 +1,56 @@
+name: Collect Semantic Scholar Papers
+
+on:
+  schedule:
+    # Runs daily at 6:00am UTC.
+    # Cron format: minute hour day-of-month month day-of-week
+    - cron: "0 6 * * *"
+
+  # Allows you to trigger this manually from the GitHub Actions UI.
+  # Useful for testing without waiting for the schedule.
+  workflow_dispatch:
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+
+    # Only run one instance of this workflow at a time.
+    # If a previous run is still in progress (e.g. slow API), skip.
+    concurrency:
+      group: collect-semantic-scholar
+      cancel-in-progress: false
+
+    steps:
+      # 1. Download your repo code onto the GitHub runner VM.
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          # fetch-depth: 1 means only clone the latest commit (faster).
+          fetch-depth: 1
+
+      # 2. Install Python on the VM.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"          # caches pip downloads between runs (faster)
+
+      # 3. Install project dependencies.
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # 4. Run the collector.
+      #    Semantic Scholar is a public API — no key needed at our request volume.
+      - name: Run Semantic Scholar collector
+        run: python -m collectors.semantic_scholar
+
+      # 5. Push the updated dashboard.db back to the repo.
+      #    The "|| echo 'No changes to commit'" prevents the step from
+      #    failing when the collector ran but found no new papers.
+      - name: Commit updated database
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add db/dashboard.db
+          git commit -m "data: Semantic Scholar collection $(date -u +'%Y-%m-%d')" || echo "No changes to commit"
+          git push
