@@ -1,17 +1,17 @@
 # HTTP requests
-requests==2.31.0
+requests>=2.32.2
 
 # Database ORM
-sqlalchemy==2.0.30
+sqlalchemy>=2.0.36
 
-# Dashboard
-streamlit==1.35.0
+# Dashboard — streamlit 1.40+ supports numpy 2.x
+streamlit>=1.40.0
 plotly==5.22.0
 
-# Data analysis — unpinned patch versions for Python 3.13 compatibility
-pandas>=2.2.3
-numpy>=2.0.0
-scipy>=1.14.0
+# Data analysis
+pandas>=2.2.0
+numpy>=1.26.0
+scipy>=1.13.0
 
 # Environment variables
 python-dotenv==1.0.1
